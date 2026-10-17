@@ -253,10 +253,32 @@ this plugin loads and the runtime's cannot diverge.
 
 ```bash
 node bin/read-figure.mjs --self-check         # offline: protocol assembly, config, write boundary
-node tools/check.mjs                          # 158 contract assertions, incl. manifest + end-to-end
+node tools/check.mjs                          # 175 contract assertions, incl. manifest + end-to-end
 node tools/validate-manifest.mjs --offline    # real JSON Schema validation of dsh-plugin.json
+node tools/selftest-types-check.mjs           # prove section 13 is not a vacuous assertion (below)
 npm run lint                                  # syntax check every shipped JS file
 ```
+
+`lib/index.d.ts` is **hand-written**: the implementation is plain ESM JavaScript, and the file exists so a
+consumer (and the harness's own tooling) can see the shape without reading the source. Hand-written means
+it drifts, and it **did** drift — in both directions at once. It declared `defaults`, `DEFAULTS`,
+`probeImage`, `decodeGray`, `decodeGrayPng` and `findSpecks`, none of which `lib/index.mjs` has ever
+re-exported, while silently omitting twelve exports that do exist. The first kind is worse than having no
+declarations at all: TypeScript accepts the import, the editor autocompletes it, and the value is
+`undefined` at run time with **nothing failing in between**.
+
+So section 13 compares the declaration's export names against the **live** exports of `lib/index.mjs`, in
+both directions, and separates values from type-only names — `interface` and `type` are erased at run time
+and promising them costs nothing, while `const`, `function` and `class` are promises. It compares names,
+not types (a text parser cannot judge a type), but it catches renames, deletions, and unkept promises,
+which is what actually went wrong.
+
+`tools/selftest-types-check.mjs` is the **mutation test** for that section: it extracts section 13 out of
+`check.mjs` and runs it against a scratch copy with five kinds of drift injected (a phantom declaration, a
+rename, a deleted declaration, a deleted runtime export, and `DEFAULTS` renamed), requiring every one to
+be caught and the unmutated pair to stay green. It deliberately **writes nothing inside the repository**:
+a self-test that rewrites tracked files and restores them loses those files if it is interrupted between
+the writes, and a self-test that can corrupt the repository it tests is not a self-test.
 
 The end-to-end assertion starts a **local HTTP stub server** and runs `execute` for real, checking the
 request body (model, `max_tokens`, `reasoning_effort`, data URL) and the assembled text. **No network.**

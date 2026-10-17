@@ -55,7 +55,7 @@
     }
   },
   "scripts": {
-    "check": "node tools/check.mjs && node tools/validate-manifest.mjs --offline",
+    "check": "node tools/selftest-types-check.mjs && node tools/check.mjs && node tools/validate-manifest.mjs --offline",
     "self-check": "node bin/read-figure.mjs --self-check",
     "lint": "node tools/lint.mjs",
     "validate:manifest": "node tools/validate-manifest.mjs"

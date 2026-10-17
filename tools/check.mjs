@@ -12,6 +12,7 @@
 //   node tools/check.mjs
 
 import { createServer } from 'node:http';
+import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -732,6 +733,192 @@ if (!existsSync(manifestPath)) {
     ok('package.json 的 files 包含 dsh-plugin.json', (pkg.files ?? []).includes('dsh-plugin.json'), JSON.stringify(pkg.files));
     ok('package.json 的 files 包含 locale/', (pkg.files ?? []).some((f) => f.replace(/\/$/, '') === 'locale'));
   }
+}
+
+// Section 12 exists because the mount path is the one thing a live dsh refused
+// once and no offline test could see: a plain object in `Config` produced
+// `TypeError: Cannot read properties of undefined (reading 'validate')` inside
+// the Loader, after `pnpm add` had already reported success. Everything below
+// drives `apply` through a stand-in context so a regression fails here instead
+// of in a restarted profile. It is a stand-in, not the Loader: it cannot prove
+// the row is reachable, only that the export is shaped like a plugin and
+// behaves when mounted.
+process.stdout.write('\n12. 挂载路径（用替身 ctx 真调一次 apply）\n');
+{
+  const mkCtx = () => {
+    const registered = [];
+    const effects = [];
+    const logs = [];
+    return {
+      registered, effects, logs,
+      ctx: {
+        tools: { register: (def) => { registered.push(def); return () => registered.pop(); } },
+        // Cordis runs an effect body, then owns its disposer. Running it here
+        // is what makes the registration observable at all.
+        effect: (fn) => { effects.push(fn); const dispose = fn(); return typeof dispose === 'function' ? dispose : () => {}; },
+        logger: {
+          info: (m) => logs.push(['info', m]),
+          warn: (m) => logs.push(['warn', m]),
+        },
+      },
+    };
+  };
+
+  ok('inject 恰好是 [tools]', Array.isArray(plugin.inject) && plugin.inject.length === 1 && plugin.inject[0] === 'tools', JSON.stringify(plugin.inject));
+  ok('apply 是函数', typeof plugin.apply === 'function');
+
+  // (a) healthy mount: one tool, registered through a context effect.
+  {
+    const { ctx, registered, effects } = mkCtx();
+    plugin.apply(ctx, { apiKey: 'sk-offline-test' });
+    ok('apply 走 ctx.effect 注册（而不是直接注册）', effects.length === 1, `effects=${effects.length}`);
+    ok('effect 回调里注册了恰好一个工具', registered.length === 1, `registered=${registered.length}`);
+    const def = registered[0];
+    ok('挂载出的工具名是 read_figure', def?.name === 'read_figure', String(def?.name));
+    ok('挂载出的工具有 parameters 对象', def?.parameters && typeof def.parameters === 'object');
+    ok('挂载出的工具有 output.render', typeof def?.output?.render === 'function');
+    ok('output.render 返回文本块', (() => {
+      try { const b = def.output.render({}, 'x'); return Array.isArray(b) && b[0]?.type === 'text' && b[0].text === 'x'; } catch { return false; }
+    })());
+    ok('挂载出的工具有 execute', typeof def?.execute === 'function');
+    ok('timeoutMs 是正有限数（否则 defineTool/register 会拒）', Number.isFinite(def?.timeoutMs) && def.timeoutMs > 0, String(def?.timeoutMs));
+  }
+
+  // (b) no credentials: refuse to register, warn, and do not throw. The plugin
+  // must not take the whole profile down over a missing key, but it also must
+  // not register a tool that can only fail once the model has committed to it.
+  // `apply` reads the ambient environment and the credential files, so the only
+  // honest way to reach this branch offline is to run it in a child process
+  // with both pointed at a scratch directory. (One child, two assertions — the
+  // alternative was adding a test-only config key.)
+  {
+    const scratch = mkdtempSync(join(tmpdir(), 'read-figure-nokey-'));
+    try {
+      const probe = join(scratch, 'probe.mjs');
+      writeFileSync(probe, `
+import { pathToFileURL } from 'node:url';
+const mod = await import(pathToFileURL(${JSON.stringify(join(ROOT, 'lib', 'index.mjs'))}).href);
+const registered = [];
+const logs = [];
+mod.apply({
+  tools: { register: (d) => { registered.push(d); return () => {}; } },
+  effect: (fn) => { fn(); return () => {}; },
+  logger: { info: (m) => logs.push(['info', m]), warn: (m) => logs.push(['warn', m]) },
+}, {});
+process.stdout.write(JSON.stringify({ registered: registered.length, warn: logs.some(([l]) => l === 'warn') }));
+`, 'utf8');
+
+      const env = { ...process.env };
+      for (const k of ['READ_FIGURE_API_KEY', 'DEEPSEEK_API_KEY']) delete env[k];
+      // Point every credential lookup root at the empty scratch directory.
+      for (const k of ['DSH_HOME', 'HOME', 'USERPROFILE']) env[k] = scratch;
+      const r = spawnSync(process.execPath, [probe], { env, encoding: 'utf8' });
+      let parsed = null;
+      try { parsed = JSON.parse(r.stdout ?? ''); } catch { /* reported below */ }
+      ok('没有密钥时不注册工具', parsed?.registered === 0, `stdout=${JSON.stringify(r.stdout)} stderr=${JSON.stringify((r.stderr ?? '').slice(0, 200))}`);
+      ok('没有密钥时发出 warn', parsed?.warn === true, `stdout=${JSON.stringify(r.stdout)}`);
+      ok('没有密钥时不抛异常（否则会炸掉整个 profile）', r.status === 0, `status=${r.status} stderr=${JSON.stringify((r.stderr ?? '').slice(0, 200))}`);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  }
+
+  // (c) a ctx with no logger must not be fatal: optional services stay optional.
+  {
+    const { ctx, registered } = mkCtx();
+    delete ctx.logger;
+    try {
+      plugin.apply(ctx, { apiKey: 'sk-offline-test' });
+      ok('ctx 没有 logger 也能挂载', registered.length === 1, `registered=${registered.length}`);
+    } catch (err) {
+      ok('ctx 没有 logger 也能挂载', false, err.message);
+    }
+  }
+}
+
+// ── 13. type declaration matches the runtime exports ───────────────────────
+//
+// `lib/index.d.ts` is hand-written, and it had drifted in BOTH directions: it
+// declared `defaults`, `DEFAULTS`, `probeImage`, `decodeGray`, `decodeGrayPng`
+// and `findSpecks` that `lib/index.mjs` never re-exported, while silently
+// omitting twelve names that it did export (`describeFigures`, `composeHandoff`,
+// `finalizeHandoff`, `writeHandoff`, `resolveHandoffPath`, `credentialCandidates`,
+// `credentialsPath`, `apply`, `defineReadFigure`, `name`, `inject`, `VisionError`).
+//
+// A stale declaration is worse than no declaration: TypeScript accepts the
+// import, the editor autocompletes it, and the value is `undefined` at run time
+// with nothing failing in between. So the names are compared here against the
+// live module both ways. Checked by name, not by type — a text parser cannot
+// judge a type, but it can catch a rename, a deletion, and a promise that was
+// never kept, which is what actually went wrong.
+process.stdout.write('13. 类型声明与运行时导出一致\n');
+{
+  const dtsPath = join(ROOT, 'lib/index.d.ts');
+  ok('lib/index.d.ts 存在', existsSync(dtsPath));
+  if (existsSync(dtsPath)) {
+    const dts = readFileSync(dtsPath, 'utf8');
+
+    // Two separate name sets. `interface` and `type` are type-only: they are
+    // erased at run time, so declaring them is not a promise that anything will
+    // exist. `const`/`function`/`class`/`enum` DO promise a runtime value, and
+    // that is the direction where drift produces a silent `undefined`.
+    const declaredTypes = new Set();
+    const declaredValues = new Set();
+    for (const m of dts.matchAll(/^\s*export\s+(?:declare\s+)?(const|let|var|function|class|interface|type|enum)\s+([A-Za-z_$][\w$]*)/gm)) {
+      (m[1] === 'interface' || m[1] === 'type' ? declaredTypes : declaredValues).add(m[2]);
+    }
+    // `export { a, b as c };` — only the exported name is collected. A bare
+    // `export { Foo }` re-exports whatever `Foo` already is, so it is counted as
+    // a value only when it is not one of the type-only names; `export type { T }`
+    // is always a type.
+    for (const m of dts.matchAll(/^\s*export\s+(type\s+)?\{([^}]*)\}/gm)) {
+      const typeOnly = Boolean(m[1]);
+      for (const part of m[2].split(',')) {
+        const piece = part.trim().replace(/^type\s+/, '');
+        if (!piece) continue;
+        const as = piece.split(/\s+as\s+/);
+        const exported = (as[1] ?? as[0]).trim();
+        if (!exported) continue;
+        (typeOnly || declaredTypes.has(exported) ? declaredTypes : declaredValues).add(exported);
+      }
+    }
+    ok('能从 .d.ts 里解析出导出名', declaredValues.size >= 10, `${declaredValues.size} 个值 + ${declaredTypes.size} 个纯类型`);
+    ok('声明了 default 导出', /^\s*export\s+default\s/m.test(dts));
+
+    // `default` is an export of the module but never a named one, so it is not
+    // in this list; `plugin` is the namespace object, so its own keys are it.
+    const runtime = Object.keys(plugin).filter((k) => k !== 'default');
+    const missing = runtime.filter((k) => !declaredValues.has(k));
+    const phantom = [...declaredValues].filter((k) => !runtime.includes(k));
+
+    ok('.d.ts 没有漏掉任何运行时导出', missing.length === 0, missing.length ? `缺少 ${missing.join(', ')}` : `${runtime.length} 个全部声明`);
+    ok('.d.ts 没有声明运行时不存在的导出', phantom.length === 0, phantom.length ? `凭空声明 ${phantom.join(', ')}` : '无凭空声明');
+
+    // The two checks above compare names only; this one requires the name to
+    // resolve to a real value. `=== undefined` rather than truthiness: `DEFAULTS`
+    // is an object and `name` is a non-empty string, but a future export that is
+    // legitimately `0`, `''` or `false` must not fail here.
+    const valueless = runtime.filter((k) => plugin[k] === undefined);
+    ok('每个运行时导出都解析出真实值', valueless.length === 0, valueless.length ? `值为 undefined：${valueless.join(', ')}` : `${runtime.length} 个都有值`);
+
+    // A type declared but never referenced is dead weight in a published file —
+    // usually the leftover half of a rename. Allow the ones that are referenced
+    // by another declaration; flag the ones that are not.
+    const orphans = [...declaredTypes].filter((t) => {
+      const uses = dts.match(new RegExp(`\\b${t}\\b`, 'g')) ?? [];
+      return uses.length <= 1;
+    });
+    ok('.d.ts 里没有无人引用的纯类型', orphans.length === 0, orphans.length ? `只出现一次：${orphans.join(', ')}` : `${declaredTypes.size} 个类型都被引用`);
+
+    // The declarations are what a consumer reads; the docs promise `DEFAULTS` is
+    // the single source of defaults, so both the runtime and the declaration
+    // must carry it or the README is describing a different package.
+    ok('DEFAULTS 既在运行时导出也在 .d.ts 声明', plugin.DEFAULTS !== undefined && declaredValues.has('DEFAULTS'));
+  }
+
+  const typesField = typeof pkg.types === 'string' ? pkg.types : pkg.exports?.['.']?.types;
+  ok('package.json 声明了 types 入口', typeof typesField === 'string', String(typesField));
+  ok('types 入口指向存在的文件', typeof typesField === 'string' && existsSync(join(ROOT, typesField)), String(typesField));
 }
 
 process.stdout.write(`

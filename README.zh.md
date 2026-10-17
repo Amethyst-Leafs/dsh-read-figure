@@ -290,10 +290,32 @@ node tools/validate-manifest.mjs --offline    # 用仓库里那份副本校验
 
 ```bash
 node bin/read-figure.mjs --self-check         # 离线自检：协议装配、配置、写盘边界
-node tools/check.mjs                          # 158 项契约自检（含清单与端到端）
+node tools/check.mjs                          # 175 项契约自检（含清单、挂载与端到端）
 node tools/validate-manifest.mjs --offline    # 用真 schema 校验 dsh-plugin.json
+node tools/selftest-types-check.mjs           # 证明第 13 节不是空断言（见下）
 npm run lint                                  # 对每个随包发布的 JS 文件做语法检查
 ```
+
+`lib/index.d.ts` 是**手写**的：实现是纯 ESM JavaScript，这个文件只是让消费者
+（以及 harness 自己的工具）不必读源码就能看到形状。手写就会漂移，而它**已经漂移过**，
+且方向不止一个：它声明了 `defaults`、`DEFAULTS`、`probeImage`、`decodeGray`、
+`decodeGrayPng`、`findSpecks`——但 `lib/index.mjs` **从来没导出过它们**；
+同时漏掉了实际存在的十二个导出。前者比没有类型声明更糟：
+TypeScript 会接受这个 import，编辑器会补全它，而运行时拿到的是 `undefined`，
+中间**没有任何一步会报错**。
+
+所以第 13 节把 `.d.ts` 的导出名与 `lib/index.mjs` 的**活体导出**双向对比，
+并按「值 / 纯类型」分开——`interface`、`type` 在运行时被擦除，
+声明它们不算承诺；`const`、`function`、`class` 才是承诺。
+只比对名字，不比对类型（文本解析器判不了类型），但它能抓住改名、
+删除、以及那些从未兑现的承诺，也就是真正出过事的那三类。
+
+`tools/selftest-types-check.mjs` 是这一节的**变异测试**：
+它把第 13 节从 `check.mjs` 里提取出来，在一份**临时副本**上注入五种漂移
+（凭空声明、改名、删声明、删运行时导出、把 `DEFAULTS` 改名），
+要求每一种都被抓住、且未被变异时全绿。它**不改仓库里的任何文件**——
+一个「改了再还原」的自检脚本在两次写之间被打断就会弄丢源码，
+而一个能弄坏被测仓库的自检不算自检。
 
 `tools/check.mjs` 里的端到端一项会起一个**本地 HTTP 桩服务**，
 真跑一遍 `execute`，检查请求体（模型、`max_tokens`、`reasoning_effort`、data URL）

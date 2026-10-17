@@ -203,9 +203,45 @@ const def = plugin.defineReadFigure(plugin.normalizeConfig({}));
 ok('工具名是 read_figure', def.name === 'read_figure');
 ok('description 提到「识图交接件」', def.description.includes('识图交接件'));
 ok('description 说明了追问用法', def.description.includes('question'));
-ok('parameters 是普通 JSON Schema 对象', def.parameters && typeof def.parameters === 'object' && !Array.isArray(def.parameters));
-ok('parameters.imagePath 是 required 的 string', def.parameters.imagePath?.type === 'string' && def.parameters.imagePath?.required === true);
-ok('parameters.imagePaths 是 string 数组', def.parameters.imagePaths?.type === 'array' && def.parameters.imagePaths?.items?.type === 'string');
+// The model API validates the function schema itself, and it is unforgiving
+// about exactly one thing: the schema's own type must be the string "object".
+// A parameter *map* (name -> {type, required}) reaches it as `type: null` and
+// kills the whole session with `Invalid schema for function 'read_figure'`.
+// The registry does not check this, so the API is the only thing that ever
+// would — at request time, in a live session. This is the offline stand-in.
+// (The reference tools in `dsh-ops` build the same shape with `bounded()`.)
+const JSON_SCHEMA_TYPES = ['string', 'number', 'integer', 'boolean', 'object', 'array', 'null'];
+const TOOL_PARAMS = ['imagePath', 'imagePaths', 'label', 'outPath', 'problemText', 'question'];
+function checkToolParameters(schema, prefix = 'parameters') {
+  const isPlainObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+  ok(`${prefix} 是对象`, isPlainObject(schema));
+  eq(`${prefix}.type 必须是 "object"（否则模型 API 拒收）`, schema?.type, 'object');
+  ok(`${prefix}.properties 是对象`, isPlainObject(schema?.properties));
+  const names = Object.keys(schema?.properties ?? {});
+  ok(`${prefix}.properties 覆盖 6 个入参`, names.length === TOOL_PARAMS.length && TOOL_PARAMS.every((n) => n in (schema?.properties ?? {})), names.join(','));
+  for (const name of names) {
+    const prop = schema.properties[name] ?? {};
+    ok(`${prefix}.properties.${name} 声明了合法 type`, JSON_SCHEMA_TYPES.includes(prop.type), String(prop.type));
+    ok(`${prefix}.properties.${name} 有说明文字`, typeof prop.description === 'string' && prop.description.length > 0);
+    // A `required: true` inside a property is the signature of the old map
+    // form: legal JSON, meaningless as a JSON Schema keyword, and it silently
+    // moves the requirement out of `required` where the model would see it.
+    ok(`${prefix}.properties.${name} 没有把 required 写在属性里`, !('required' in prop), JSON.stringify(prop.required));
+    if (prop.type === 'array') ok(`${prefix}.properties.${name}.items 有 type`, JSON_SCHEMA_TYPES.includes(prop.items?.type), String(prop.items?.type));
+  }
+  if ('required' in (schema ?? {})) {
+    ok(`${prefix}.required 是数组`, Array.isArray(schema.required));
+    ok(`${prefix}.required 里的名字都真的存在`, (schema.required ?? []).every((n) => names.includes(n)), JSON.stringify(schema.required));
+  }
+  eq(`${prefix}.additionalProperties 为 false`, schema?.additionalProperties, false);
+  // What travels over the wire is the JSON-serialized form: an undefined
+  // property or a function value would silently vanish there, not here.
+  const wire = JSON.parse(JSON.stringify(schema ?? null));
+  eq(`${prefix} 经 JSON 序列化后 type 仍是 "object"`, wire?.type, 'object');
+  ok(`${prefix} 经 JSON 序列化后属性数不变`, Object.keys(wire?.properties ?? {}).length === names.length, `${Object.keys(wire?.properties ?? {}).length} vs ${names.length}`);
+}
+
+checkToolParameters(def.parameters);
 ok('output.schema 声明为 string', def.output?.schema?.type === 'string');
 const rendered = def.output.render({}, 'hello');
 ok('output.render 返回文本块数组', Array.isArray(rendered) && rendered[0]?.type === 'text' && rendered[0]?.text === 'hello');
@@ -775,7 +811,10 @@ process.stdout.write('\n12. 挂载路径（用替身 ctx 真调一次 apply）\n
     ok('effect 回调里注册了恰好一个工具', registered.length === 1, `registered=${registered.length}`);
     const def = registered[0];
     ok('挂载出的工具名是 read_figure', def?.name === 'read_figure', String(def?.name));
-    ok('挂载出的工具有 parameters 对象', def?.parameters && typeof def.parameters === 'object');
+    // The same check the API applies, run against the definition that actually
+    // reached `ctx.tools.register` — the mount path is where the map-shaped
+    // schema shipped, so this is the assertion that would have caught it.
+    checkToolParameters(def?.parameters, '挂载时注册的 parameters');
     ok('挂载出的工具有 output.render', typeof def?.output?.render === 'function');
     ok('output.render 返回文本块', (() => {
       try { const b = def.output.render({}, 'x'); return Array.isArray(b) && b[0]?.type === 'text' && b[0].text === 'x'; } catch { return false; }

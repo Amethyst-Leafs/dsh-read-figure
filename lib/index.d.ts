@@ -61,6 +61,19 @@ export const Config: {
   readonly fields: readonly string[];
 };
 
+/**
+ * The shape the model API insists on for a function's arguments: a JSON Schema
+ * document. `type` here is not decorative — a schema without it is serialized
+ * as `type: null` and the API refuses the whole request.
+ */
+export interface ToolParametersSchema {
+  type: 'object';
+  description?: string;
+  properties: Record<string, { type: string; description?: string; items?: { type: string } }>;
+  required?: readonly string[];
+  additionalProperties: false;
+}
+
 export const name: 'read-figure';
 /** Only `tools` is injected; the optional credential service stays out of the hard list. */
 export const inject: readonly string[];
@@ -83,7 +96,13 @@ export function defaults(): ResolvedReadFigureConfig;
 export function defineReadFigure(config: ResolvedReadFigureConfig): {
   name: 'read_figure';
   description: string;
-  parameters: Record<string, unknown>;
+  /**
+   * A JSON Schema document whose own `type` is `"object"` — the model API
+   * rejects the function otherwise (`type: null` for a parameter map). This is
+   * `Record<string, unknown>` in the old declarations, which is how a map
+   * shaped by hand could pass type-checking and still fail at request time.
+   */
+  parameters: ToolParametersSchema;
   output: {
     schema: { type: 'string' };
     /** One text part — the agent reads it directly rather than through a file. */

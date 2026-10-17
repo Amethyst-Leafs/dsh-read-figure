@@ -1,0 +1,13 @@
+# Normalise line endings on commit so a Windows checkout and a Linux one
+# produce identical blobs.
+* text=auto eol=lf
+
+# Windows-only helpers must keep CRLF so cmd.exe and PowerShell parse them.
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+
+# Binary-ish assets: never touch.
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.svg text eol=lf

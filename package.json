@@ -1,0 +1,67 @@
+{
+  "name": "read-figure",
+  "version": "0.1.0",
+  "description": "Give text-only models a fixed three-section figure-reading handoff: a vision model describes a physics figure (structure / restatement / confidence), the tool returns it as text, and uncertain marks must be listed instead of guessed.",
+  "type": "module",
+  "license": "MIT",
+  "icon": "./icon.svg",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.mjs"
+    },
+    "./package.json": "./package.json",
+    "./prompts/*": "./prompts/*"
+  },
+  "bin": {
+    "read-figure": "./bin/read-figure.mjs"
+  },
+  "files": [
+    "lib/",
+    "prompts/",
+    "locale/",
+    "cordis.patch.yml",
+    "dsh-plugin.json",
+    "icon.svg",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OWNER/read-figure.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OWNER/read-figure/issues"
+  },
+  "homepage": "https://github.com/OWNER/read-figure#readme",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "cordis",
+    "plugin",
+    "vision",
+    "figure",
+    "image",
+    "physics"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "check": "node tools/check.mjs && node tools/validate-manifest.mjs --offline",
+    "self-check": "node bin/read-figure.mjs --self-check",
+    "lint": "node tools/lint.mjs",
+    "validate:manifest": "node tools/validate-manifest.mjs"
+  },
+  "meta": {
+    "title": "Read Figure",
+    "description": "Vision handoff for text-only models: describe a figure in a fixed three-section protocol with explicit uncertainty."
+  }
+}

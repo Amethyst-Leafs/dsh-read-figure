@@ -1,0 +1,25 @@
+# Bundle patch layer for read-figure.
+#
+# The row loads this package's main entry (`lib/index.mjs`) as the host half, a
+# plain Cordis plugin. There is no client half: the tool result is text, which
+# every conversation surface already renders.
+#
+# This is a CONFIG FILE, not a patch: it only ever inserts, and it exists so the
+# bundle has a row to activate. To customise the plugin, add a row with the same
+# `id` to a profile's own `cordis.patch.yml` — a Loader override replaces the
+# whole `config`, it never deep-merges, so restate every field you want to keep.
+#
+# Deliberately absent: `maxTokens`. The row used to pin 8000, which was low
+# enough that the model's thinking chain ate the entire output budget and the
+# tool returned nothing. An omitted key falls back to the schema default, and
+# the schema default is derived from the normalizer's DEFAULTS, so leaving it out
+# is both correct and drift-proof. Same reasoning for `apiKey`, `promptFile`,
+# `extraInstruction`, `handoffDir`, and `writeHandoff`.
+- insert:
+    - id: read-figure
+      name: read-figure
+      config:
+        baseUrl: https://api.deepseek.com
+        model: deepseek-flash
+        reasoningEffort: high
+        timeoutMs: 180000

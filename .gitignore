@@ -1,0 +1,20 @@
+# Ignored: scratch output a CLI run drops here.
+
+# `bin/read-figure.mjs` writes its handoff next to the figure by default. That is
+# the right default for a person reading a paper, and the wrong thing to commit,
+# so the directory is ignored wholesale rather than file by file.
+/out/
+
+# The figures the pixel-layer assertions run against are somebody else's exam
+# paper, so they are not redistributed here. Drop your own copies in fixtures/
+# or point READ_FIGURE_FIXTURES at a directory; see fixtures/README.md.
+/fixtures/*.jpg
+/fixtures/*.jpeg
+/fixtures/*.png
+
+node_modules/
+npm-debug.log*
+*.tgz
+
+.DS_Store
+Thumbs.db

@@ -1,0 +1,5 @@
+{
+  "name": "read-figure",
+  "title": "Read Figure",
+  "description": "Let a text-only model read a figure: a vision model transcribes the image into a three-part handoff, uncertainty included, before the plain-text model reasons about it."
+}

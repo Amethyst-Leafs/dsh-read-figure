@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="read-figure">
+  <title>read-figure</title>
+  <!-- A frame holding a figure, with the eye that reads it. The lone dot on the
+       right is deliberate: it is the stray speck the protocol exists to name. -->
+  <rect x="6" y="10" width="38" height="44" rx="4" fill="none" stroke="currentColor" stroke-width="3"/>
+  <path d="M12 44 L24 26 L34 40 L40 33" fill="none" stroke="currentColor" stroke-width="3"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="40" cy="22" r="2.4" fill="currentColor"/>
+  <path d="M36 48 C42 40 54 40 60 48 C54 56 42 56 36 48 Z" fill="none" stroke="currentColor" stroke-width="3"
+        stroke-linejoin="round"/>
+  <circle cx="48" cy="48" r="3.4" fill="currentColor"/>
+</svg>

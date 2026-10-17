@@ -105,17 +105,37 @@ DSH 本身已经能把**附件图片**送给有视觉能力的模型。但下面
 
 ## 安装
 
-### 方式一：官方 CLI（插件市场通道）
+### 方式一：交给插件管理器（推荐，本仓库就是这么装上去验证的）
 
-```bash
-dsh plugin --profile desktop add read-figure
-# 或从 git / 本地目录：
-dsh plugin --profile desktop add github:<you>/dsh-read-figure
-dsh plugin --profile desktop add ./path/to/dsh-read-figure
+让代理调用 `plugin_manager`，或等价的 CLI 包操作：
+
+```
+plugin_manager install_bundle  https://github.com/Amethyst-Leafs/read-figure
+plugin_manager install_bundle  ./path/to/read-figure        # 本地目录，开发时用
 ```
 
-包里的 `cordis.patch.yml` 声明了 `dsh.bundle.patch`，
-安装时 CLI 会把它加进 profile 的 bundle 栈，**不需要手工改 profile 文件**。
+`install_bundle` 会走 `pnpm add` 把包装进 profile，并按包里的 `cordis.patch.yml`
+声明把它加进 profile 的 bundle 栈，**不需要手工改 profile 文件**。
+
+**装完必须重启 dsh。** host 插件在进程启动时就挂载好了，重启才会出现 `read_figure` 工具。
+（本仓库在 desktop profile 上的实测结论：第二次安装返回 `application: restart-required`，
+说明 mount 期没有报错；装之前那次返回的是 `failed`，因为当时的 `Config` 不是 Standard Schema。）
+
+### 方式二：手工挂载
+
+在 profile 的 `cordis.patch.yml` 里加一行：
+
+```yaml
+- id: read-figure
+  name: read-figure
+  config:
+    model: deepseek-flash
+    apiKey: sk-…            # 见下面「密钥」
+```
+
+注意这是**按 id 覆盖**：`config` 是整块替换、不会深合并，要改就重述你想留的全部字段。
+（本包自己的 `cordis.patch.yml` 故意不写 `maxTokens`，让它回落代码里的缺省值——
+行值优先于缺省值，写在那儿就等于给所有人钉死一个数。）
 
 ### 方式二：手工挂载
 

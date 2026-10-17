@@ -76,17 +76,22 @@ Edit it directly, or point `promptFile` / `extraInstruction` at your own version
 
 ## Install
 
-### 1. Official CLI (the marketplace channel)
+### 1. Let the plugin manager do it (recommended — this is how the repo was verified)
 
-```bash
-dsh plugin --profile desktop add read-figure
-# from git or a local directory:
-dsh plugin --profile desktop add github:<you>/dsh-read-figure
-dsh plugin --profile desktop add ./path/to/dsh-read-figure
+Ask the agent to call `plugin_manager`, or use the equivalent CLI package operation:
+
+```
+plugin_manager install_bundle  https://github.com/Amethyst-Leafs/read-figure
+plugin_manager install_bundle  ./path/to/read-figure        # a local directory, for development
 ```
 
-The package declares `dsh.bundle.patch` in `cordis.patch.yml`, so the CLI appends it to the
-profile's bundle stack — **no hand-editing of profile files**.
+`install_bundle` runs `pnpm add` against the profile and appends the row declared in
+`cordis.patch.yml` to the profile's bundle stack — **no hand-editing of profile files**.
+
+**Restart dsh afterwards.** Host plugins mount when the process starts, so `read_figure` only
+appears after a restart. (Measured on the desktop profile: the second install returned
+`application: restart-required`, i.e. nothing failed at mount time. The first attempt returned
+`failed` because this package's `Config` was not a Standard Schema yet.)
 
 ### 2. Manual mount
 

@@ -34,9 +34,15 @@ const ROOT = resolvePath(HERE, '..');
 
 const checkSource = readFileSync(join(ROOT, 'tools/check.mjs'), 'utf8');
 const start = checkSource.indexOf('// ── 13.');
-const end = checkSource.indexOf('process.stdout.write(`\n结果：');
+// Section 13 ends where the *next* section begins, not where the script's final
+// summary line is: sections keep being appended after 13, and each one reads
+// files this scratch tree deliberately does not have (`README.md`), so an
+// end-anchor on the summary line made this self-test run section 14 with no
+// README.md and report the resulting crash as "the assertion is empty".
+const nextSection = checkSource.indexOf('// ── 14.', start + 1);
+const end = nextSection > start ? nextSection : checkSource.indexOf('process.stdout.write(`\n结果：');
 if (start < 0 || end < 0 || end < start) {
-  process.stdout.write('✘ 无法从 tools/check.mjs 里定位第 13 节（头部或结尾的锚点变了）\n');
+  process.stdout.write('✘ 无法从 tools/check.mjs 里定位第 13 节（头部或下一节的锚点变了）\n');
   process.exit(1);
 }
 const section13 = checkSource.slice(start, end);

@@ -21,6 +21,7 @@
     "lib/",
     "prompts/",
     "locale/",
+    "examples/",
     "cordis.patch.yml",
     "dsh-plugin.json",
     "icon.svg",

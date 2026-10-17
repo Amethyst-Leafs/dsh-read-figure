@@ -12,7 +12,7 @@
 import { basename } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { describeFigures, summarize } from '../lib/describe-figure.mjs';
-import { normalizeConfig } from '../lib/config.mjs';
+import { DEFAULTS, normalizeConfig } from '../lib/config.mjs';
 import { probeImage } from '../lib/image-size.mjs';
 import { VisionError } from '../lib/vision.mjs';
 
@@ -28,12 +28,12 @@ const USAGE = `read-figure — 把题图交给视觉模型，取回三段式「�
   --problem-file <路径> 从文件读题面文字（避免长文本在命令行里转义）
   --question <文本>     定向追问：只回答这一条，不重写整份交接件
   --out <路径>          交接件写到该文件；缺省则打到 stdout
-  --model <名>          视觉模型（缺省 deepseek-flash）
-  --base-url <URL>      接口地址（缺省 https://api.deepseek.com）
+  --model <名>          视觉模型（缺省 ${DEFAULTS.model}）
+  --base-url <URL>      接口地址（缺省 ${DEFAULTS.baseUrl}）
   --api-key <key>       直写密钥；缺省依次读 READ_FIGURE_API_KEY、DEEPSEEK_API_KEY
-  --max-tokens <n>      缺省 8000；deepseek-flash 会先出思考链，给少了会空正文
-  --effort <低/高>      reasoning effort：low / high / max，缺省 high
-  --timeout <ms>        单次请求超时，缺省 180000
+  --max-tokens <n>      缺省 ${DEFAULTS.maxTokens}；deepseek-flash 会先出思考链，给少了会空正文
+  --effort <低/高>      reasoning effort：low / high / max，缺省 ${DEFAULTS.reasoningEffort}
+  --timeout <ms>        单次请求超时，缺省 ${DEFAULTS.timeoutMs}
   --prompt-file <路径>  覆盖内置协议文件
   --json                结果以 JSON 输出（含出处信息）
   --self-check          离线自检：协议装配、图片头解析、配置校验，不联网

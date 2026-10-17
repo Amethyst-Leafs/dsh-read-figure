@@ -921,6 +921,51 @@ process.stdout.write('13. 类型声明与运行时导出一致\n');
   ok('types 入口指向存在的文件', typeof typesField === 'string' && existsSync(join(ROOT, typesField)), String(typesField));
 }
 
+// ── 14. documented defaults agree with DEFAULTS ────────────────────────────
+{
+  process.stdout.write('\n文档里的缺省值\n');
+
+  // The READMEs promise that `DEFAULTS` is the single source of defaults, and
+  // both tables went on listing `maxTokens` as 8000 long after the code moved to
+  // 32000 — so a reader who trusted the table set the one value that empties a
+  // handoff. A table nobody checks is just a second copy of the truth, and the
+  // second copy is the one that drifts. Rows are fixed-width and machine
+  // readable on purpose: `| `key` | `value` | …`.
+  const EXPECT = {
+    baseUrl: plugin.DEFAULTS.baseUrl,
+    model: plugin.DEFAULTS.model,
+    apiKey: "''",
+    maxTokens: String(plugin.DEFAULTS.maxTokens),
+    reasoningEffort: plugin.DEFAULTS.reasoningEffort,
+    timeoutMs: String(plugin.DEFAULTS.timeoutMs),
+    promptFile: "''",
+    extraInstruction: "''",
+    handoffDir: "''",
+    writeHandoff: 'false',
+  };
+
+  for (const md of ['README.md', 'README.zh.md']) {
+    const text = readFileSync(join(ROOT, md), 'utf8');
+    const wrong = [];
+    for (const [key, want] of Object.entries(EXPECT)) {
+      const m = text.match(new RegExp('^\\| `' + key + '` \\| `([^`]*)` \\|', 'm'));
+      if (!m) wrong.push(`${key} 缺行`);
+      else if (m[1] !== want) wrong.push(`${key}=${m[1]}≠${want}`);
+    }
+    ok(`${md} 的缺省值表与 DEFAULTS 一致`, wrong.length === 0, wrong.length ? wrong.join('; ') : `${Object.keys(EXPECT).length} 个键全部一致`);
+  }
+
+  // `--help` is the surface a user meets before the README, and it had its own
+  // retyped `缺省 8000`. Same treatment: every documented default must come from
+  // DEFAULTS, so the numbers cannot disagree with the code that uses them.
+  const help = spawnSync(process.execPath, [join(ROOT, 'bin', 'read-figure.mjs'), '--help'], { encoding: 'utf8' });
+  const out = `${help.stdout ?? ''}${help.stderr ?? ''}`;
+  const wanted = [plugin.DEFAULTS.maxTokens, plugin.DEFAULTS.model, plugin.DEFAULTS.baseUrl, plugin.DEFAULTS.timeoutMs, plugin.DEFAULTS.reasoningEffort];
+  const absent = wanted.filter((v) => !out.includes(String(v)));
+  ok('CLI 的 --help 里缺省值取自 DEFAULTS', absent.length === 0, absent.length ? `缺 ${absent.join(', ')}` : `${wanted.length} 个缺省值都在`);
+  ok('CLI --help 没有把某个缺省值写死成旧值', !/缺省 8000/.test(out));
+}
+
 process.stdout.write(`
 结果：${pass} 项通过，${fail} 项失败
 `);

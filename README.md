@@ -72,6 +72,11 @@ The protocol body is **a markdown file** (`prompts/figure-handoff.zh.md`), not s
 Edit it directly, or point `promptFile` / `extraInstruction` at your own version —
 **70% of this plugin's value is the protocol, not the few hundred lines of HTTP code.**
 
+Three **real** outputs — verbatim, from actual runs on 2026-10-17, with only the local
+absolute paths redacted — live in [`examples/`](examples/). They show both modes
+(whole-figure handoff, and a targeted follow-up) and why `maxTokens` defaults to 32000:
+the reasoning chain was **92.8%** of the completion on the scanned page.
+
 ---
 
 ## Install
@@ -122,7 +127,7 @@ node bin/read-figure.mjs --img figures/1.jpg --img figures/2.jpg --out out/hando
 | `baseUrl` | `https://api.deepseek.com` | any OpenAI-compatible `/chat/completions` endpoint |
 | `model` | `deepseek-flash` | vision model name |
 | `apiKey` | `''` | when empty, `READ_FIGURE_API_KEY` then `DEEPSEEK_API_KEY` |
-| `maxTokens` | `8000` | **do not set this low**: a reasoning vision model spends it on its thinking chain first, and an exhausted budget returns an empty answer |
+| `maxTokens` | `32000` | already above the observed ceiling (~29k characters of reasoning at `effort: high` on a 3094×1526 scan); **lowering it re-creates the empty-answer bug** |
 | `reasoningEffort` | `high` | `low` / `high` / `max` |
 | `timeoutMs` | `180000` | per-request timeout |
 | `promptFile` | `''` | empty uses the packaged `prompts/figure-handoff.zh.md` |

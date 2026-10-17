@@ -101,6 +101,10 @@ DSH 本身已经能把**附件图片**送给有视觉能力的模型。但下面
 你可以直接改它，或用 `promptFile` / `extraInstruction` 指向你自己的版本——
 **这个插件 70% 的价值在协议本身，而不是在那几百行 HTTP 代码。**
 
+三份**真实输出**在 [`examples/`](examples/)：逐字保留，取自 2026-10-17 的实跑，只把本机绝对路径换成
+`<本机路径>`。它们同时展示了两种模式（整图交接件 / 定向追问），也说明了 `maxTokens` 为什么缺省
+32000——那一页的思考链占了 completion 的 **92.8%**。
+
 ---
 
 ## 安装
@@ -166,7 +170,7 @@ node bin/read-figure.mjs --img figures/1.jpg --img figures/2.jpg --out out/hando
 | `baseUrl` | `https://api.deepseek.com` | 任何 OpenAI 兼容的 `/chat/completions` 端点 |
 | `model` | `deepseek-flash` | 视觉模型名 |
 | `apiKey` | `''` | 空则依次读 `READ_FIGURE_API_KEY`、`DEEPSEEK_API_KEY` |
-| `maxTokens` | `8000` | **别给太小**：推理型视觉模型会先出思考链，给少了正文会是空的 |
+| `maxTokens` | `32000` | 已高于实测上限（3094×1526 扫描件、`effort: high` 时思考链约 29k 字符）；**调低就会重现「正文为空」** |
 | `reasoningEffort` | `high` | `low` / `high` / `max` |
 | `timeoutMs` | `180000` | 单次请求超时 |
 | `promptFile` | `''` | 空则用包内 `prompts/figure-handoff.zh.md` |

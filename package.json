@@ -33,12 +33,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Amethyst-Leafs/read-figure.git"
+    "url": "git+https://github.com/Amethyst-Leafs/dsh-read-figure.git"
   },
   "bugs": {
-    "url": "https://github.com/Amethyst-Leafs/read-figure/issues"
+    "url": "https://github.com/Amethyst-Leafs/dsh-read-figure/issues"
   },
-  "homepage": "https://github.com/Amethyst-Leafs/read-figure#readme",
+  "homepage": "https://github.com/Amethyst-Leafs/dsh-read-figure#readme",
   "keywords": [
     "deepseek-harness",
     "dsh",

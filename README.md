@@ -81,7 +81,7 @@ Edit it directly, or point `promptFile` / `extraInstruction` at your own version
 Ask the agent to call `plugin_manager`, or use the equivalent CLI package operation:
 
 ```
-plugin_manager install_bundle  https://github.com/Amethyst-Leafs/read-figure
+plugin_manager install_bundle  https://github.com/Amethyst-Leafs/dsh-read-figure
 plugin_manager install_bundle  ./path/to/read-figure        # a local directory, for development
 ```
 

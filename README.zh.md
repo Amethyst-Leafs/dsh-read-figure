@@ -110,7 +110,7 @@ DSH 本身已经能把**附件图片**送给有视觉能力的模型。但下面
 让代理调用 `plugin_manager`，或等价的 CLI 包操作：
 
 ```
-plugin_manager install_bundle  https://github.com/Amethyst-Leafs/read-figure
+plugin_manager install_bundle  https://github.com/Amethyst-Leafs/dsh-read-figure
 plugin_manager install_bundle  ./path/to/read-figure        # 本地目录，开发时用
 ```
 

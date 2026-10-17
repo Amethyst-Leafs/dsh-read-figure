@@ -1,0 +1,6 @@
+url: https://github.com/Amethyst-Leafs/dsh-read-figure
+name: Amethyst-Leafs/dsh-read-figure
+category: vision
+description:
+  en: 'Registers one `read_figure` tool: it sends image files from disk plus the problem text you supply to a vision model, and returns a fixed three-section handoff for a text-only model to answer from — the figure''s structure and labels, a restatement of the physical situation, and a confidence declaration that lists what could not be resolved instead of guessing. It describes the figure and the given conditions only and never solves the problem.'
+  zh: '注册一个 `read_figure` 工具：把磁盘上的图片和你传入的题面文字交给视觉模型，取回固定三段式的识图交接件供纯文本模型作答——图的结构与标注、物理情境的复述、以及逐条列出未确定项的置信度声明（不猜）。它只描述图与题面条件，从不解题。'
